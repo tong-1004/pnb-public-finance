@@ -21,6 +21,41 @@ node pnb/cli.mjs demo pnb-demo.json
 node pnb/cli.mjs verify pnb-demo.json
 ```
 
+## 多節點可運行版本
+
+需要 Node.js 20 以上。以下命令在倉庫根目錄執行；資料與私鑰放在不同目錄，`.gitignore` 排除示範資料目錄與 `*.private.pem`。不要把私鑰複製到公開倉庫。
+
+```powershell
+node --test pnb/test.mjs pnb/peer.test.mjs
+node pnb/node.mjs bootstrap node-data node-keys
+node pnb/node.mjs populate-demo node-data node-keys
+node pnb/node.mjs inspect node-data
+node pnb/node.mjs serve node-data 8791
+```
+
+`bootstrap` 建立七個不同的 Ed25519 角色金鑰與空白發布帳本；`populate-demo` 用這些金鑰逐筆追加八個合成事件，可重跑而不重複事件。`serve` 持續從磁碟讀取並核驗帳本，提供只讀頁面、`/api/ledger`、`/api/summary` 與 `/api/checkpoint`。用另一個終端開啟 <http://127.0.0.1:8791/>。
+
+在另一個終端建立鏡像節點。下列取檢查點方式只供本機示範；實際部署應從獨立渠道取得並保存信任根、事件數和鏈頭，避免首次同步時被替換。
+
+```powershell
+$checkpoint = node pnb/node.mjs inspect node-data | ConvertFrom-Json
+node pnb/node.mjs mirror mirror-data $checkpoint.trustRoot $checkpoint.eventCount $checkpoint.head
+node pnb/node.mjs sync mirror-data http://127.0.0.1:8791/
+node pnb/node.mjs inspect mirror-data
+node pnb/node.mjs serve mirror-data 8792
+```
+
+鏡像頁面在 <http://127.0.0.1:8792/>。它只接受同一信任根、包含已固定檢查點且完整延伸本地鏈的資料；回退、分叉、壞簽章與替換角色表會被拒絕。其他鏡像也能從此鏡像同步。若需持續同步，可執行 `node pnb/node.mjs follow mirror-data 10 http://127.0.0.1:8791/`；也可提供多個節點 URL，依序核對。
+
+追加一筆新的合成稽核事件後，再同步鏡像：
+
+```powershell
+node pnb/node.mjs append node-data independent_auditor node-keys/independent_auditor.private.pem audit_finding_opened pnb/examples/second-audit-finding.json
+node pnb/node.mjs sync mirror-data http://127.0.0.1:8791/
+```
+
+`keygen` 和 `init` 命令也允許不同持有人分別生成金鑰，再用公開金鑰組成 `actors.json`；正式部署時各角色應自行保管私鑰。公開帳本內只有公鑰與簽章，沒有私鑰。單一發布者仍可拒絕新事件；多鏡像保留已見歷史，但本版本沒有分散式共識、抗女巫攻擊、法定身分認證或自動支付。若獨立鏡像從未見過某段歷史，必須靠獨立取得的檢查點防範發布者提供另一條有效簽章分叉。
+
 網頁使用已存放的 `sample-ledger.json`，啟動前會先驗證；下載檔應與它一致。`demo` 輸出的角色註冊表 SHA-256 應由不同保管者另行保存；獨立核驗時將它作為 `verify` 的第三個參數，才能發現整份角色註冊表被替換。第二次產生資料會得到新密鑰與新信任根；示範私鑰只留在當次程序記憶體，退出後即不能再新增事件。
 
 ## 公開資料與邊界

@@ -1,0 +1,4 @@
+*.private.pem
+node-data/
+node-keys/
+mirror-data/

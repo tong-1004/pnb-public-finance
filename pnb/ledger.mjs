@@ -1,4 +1,4 @@
-import { createHash, sign, verify } from "node:crypto";
+import { createHash, createPublicKey, sign, verify } from "node:crypto";
 
 const ZERO = "0".repeat(64);
 const SHA256 = /^[a-f0-9]{64}$/;
@@ -162,8 +162,13 @@ export function verifyLedger(bundle) {
   }
   const publicKeys = new Set();
   for (const actor of Object.values(bundle.actors)) {
-    if (publicKeys.has(actor.publicKey)) fail("Two actors cannot share one public key");
-    publicKeys.add(actor.publicKey);
+    let key;
+    try { key = createPublicKey(actor.publicKey); }
+    catch { fail("Invalid actor public key"); }
+    if (key.asymmetricKeyType !== "ed25519") fail("Actor key must be Ed25519");
+    const identity = key.export({ type: "spki", format: "der" }).toString("hex");
+    if (publicKeys.has(identity)) fail("Two actors cannot share one public key");
+    publicKeys.add(identity);
   }
   const state = { projects: Object.create(null), transactionIds: new Set(), findingIds: new Set(), findings: [] };
   let previous = ZERO;
@@ -171,7 +176,7 @@ export function verifyLedger(bundle) {
     keys(event, ["sequence", "previous", "type", "actor", "payload", "signature", "hash"], "event");
     if (event.sequence !== index || event.previous !== previous) fail(`Broken chain at event ${index}`);
     string(event.actor, "event actor", 100);
-    if (!bundle.actors[event.actor]) fail("Unregistered actor");
+    if (!Object.hasOwn(bundle.actors, event.actor)) fail("Unregistered actor");
     const unsigned = { sequence: event.sequence, previous: event.previous, type: event.type, actor: event.actor, payload: event.payload };
     let accepted = false;
     try {
@@ -200,7 +205,7 @@ export function verifyLedger(bundle) {
 
 export function appendSigned(bundle, actor, privateKey, type, payload) {
   verifyLedger(bundle);
-  if (!bundle.actors[actor]) fail("Unregistered actor");
+  if (!Object.hasOwn(bundle.actors, actor)) fail("Unregistered actor");
   const unsigned = {
     sequence: bundle.events.length, previous: bundle.events.at(-1)?.hash ?? ZERO,
     type, actor, payload,
