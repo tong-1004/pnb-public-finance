@@ -41,6 +41,14 @@ jobs:
             if (-not ($entries -match '/pnb/trade\.mjs$')) { throw 'TEST trade program missing' }
             if (-not ($entries -match '/pnb/evm\.html$')) { throw 'Sepolia page missing' }
           } finally { $archive.Dispose() }
+          $smoke = Join-Path (Resolve-Path -LiteralPath build).Path 'smoke-windows'
+          Expand-Archive -LiteralPath $zip.FullName -DestinationPath $smoke
+          $package = Get-ChildItem -LiteralPath $smoke -Directory | Select-Object -First 1
+          if (-not $package) { throw 'Extracted package missing' }
+          & (Join-Path $package.FullName 'node.exe') --version
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled Node did not start' }
+          & (Join-Path $package.FullName 'node.exe') (Join-Path $package.FullName 'pnb/cli.mjs') verify (Join-Path $package.FullName 'pnb/sample-ledger.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Extracted package failed ledger verification' }
           $hash = (Get-FileHash -LiteralPath $zip.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $($zip.Name)" | Set-Content -LiteralPath build/SHA256SUMS.txt -Encoding ascii
       - name: Publish prerelease with archive and checksum
