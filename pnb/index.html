@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>人民核彈｜公共財政透明試點</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#1b2630;background:#f2f5f7}
+    *{box-sizing:border-box}body{margin:0}header{background:#123143;color:white;padding:2rem max(1rem,calc((100vw - 1100px)/2))}
+    h1{margin:.2rem 0;font-size:clamp(1.7rem,4vw,2.8rem)}header p{max-width:70ch;line-height:1.7}
+    main{max-width:1100px;margin:auto;padding:1.2rem}a{color:#005e80}a:focus-visible{outline:3px solid #e2a817}
+    .warning{background:#fff6db;border-left:5px solid #c58900;padding:1rem;line-height:1.6;margin:1rem 0}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.8rem}
+    .card,section{background:white;border:1px solid #d6dfe5;border-radius:.65rem;padding:1.1rem;margin:1rem 0}
+    .card strong{display:block;font-size:1.5rem;margin-top:.4rem}.muted{color:#5c6a73}
+    .bar{height:.7rem;border-radius:1rem;background:#dbe5e9;overflow:hidden}.bar span{display:block;height:100%;background:#15799a}
+    ol{padding-left:1.4rem}li{margin:.75rem 0;line-height:1.55}code{overflow-wrap:anywhere;font-size:.82rem}
+    .event{border-top:1px solid #e4eaed;padding:.65rem 0}.event:first-child{border:0}
+    .event small{display:block;color:#5c6a73;overflow-wrap:anywhere}
+    button{border:1px solid #164964;background:white;padding:.7rem 1rem;border-radius:.4rem;cursor:pointer}
+    @media(max-width:600px){header{padding:1.3rem 1rem}main{padding:.8rem}.card,section{padding:.9rem}}
+  </style>
+</head>
+<body>
+  <header>
+    <p>PNB · Public oversight pilot</p>
+    <h1>人民核彈：公共財政透明試點</h1>
+    <p>把預算授權、招標、決標、獨立驗收、付款與稽核放在同一條可下載核驗的事件鏈。這裡只展示合成案例，無真實資金或政府資料。</p>
+  </header>
+  <main>
+    <div class="warning"><strong>示範邊界：</strong>簽章與雜湊可檢查紀錄是否被事後修改；不能證明現場工作真的完成、銀行確實付款，或參與者具有法定身分。薪資只公開批次總額與人數，不公開工人姓名。</div>
+    <p><a href="/api/ledger" download="pnb-demo-ledger.json">下載完整公開事件 JSON</a> · 在倉庫根目錄執行 <code>node pnb/cli.mjs verify &lt;下載檔路徑&gt;</code> 可獨立重播核對。</p>
+    <div id="status" role="status">正在核對事件鏈…</div>
+    <div class="cards" id="metrics"></div>
+    <section><h2>採購流程與資金去向</h2><div id="projects"></div></section>
+    <section><h2>獨立稽核與待查事項</h2><div id="findings"></div></section>
+    <section><h2>可驗證事件</h2><div id="events"></div></section>
+  </main>
+  <script>
+    const fmt = new Intl.NumberFormat("zh-TW");
+    const labels = {
+      budget_authorized:"預算授權",tender_published:"招標公告",contract_awarded:"決標與契約",
+      milestone_attested:"里程碑驗收",payment_recorded:"付款紀錄",
+      wage_batch_committed:"薪資批次承諾",audit_finding_opened:"稽核待查事項"
+    };
+    const el = (tag, text, className) => {
+      const node = document.createElement(tag);
+      if (text !== undefined) node.textContent = text;
+      if (className) node.className = className;
+      return node;
+    };
+    async function load() {
+      try {
+        const [summaryResponse, ledgerResponse] = await Promise.all([fetch("/api/summary"), fetch("/api/ledger")]);
+        if (!summaryResponse.ok || !ledgerResponse.ok) throw new Error("讀取失敗");
+        const summary = await summaryResponse.json();
+        const ledger = await ledgerResponse.json();
+        document.getElementById("status").textContent = `本機伺服器重播驗證通過 · ${summary.eventCount} 筆事件 · 鏈頭 ${summary.head.slice(0,16)}… · 角色註冊表 ${summary.trustRoot.slice(0,16)}…`;
+        const projects = document.getElementById("projects");
+        const metrics = document.getElementById("metrics");
+        for (const p of summary.projects) {
+          for (const [label, value] of [["核准預算",p.budget],["契約金額",p.contract?.amount ?? 0],["已記錄付款",p.paid],["預算未付款",p.remaining]]) {
+            const card = el("div",undefined,"card");
+            card.append(el("span",label,"muted"),el("strong",`${fmt.format(value)} TEST`));
+            metrics.append(card);
+          }
+          const box = el("article");
+          box.append(el("h3",p.title),el("p",`流程 ID：${p.ocid} · 承包商代號：${p.contract?.contractor ?? "未決標"}`));
+          const progress = el("div",undefined,"bar");
+          const filled = el("span");
+          filled.style.width = `${Math.min(100,100*p.paid/p.budget)}%`;
+          progress.append(filled);box.append(progress);
+          const list = el("ol");
+          for (const m of p.milestones) {
+            const item = el("li",`${m.title}：${fmt.format(m.amount)} TEST；不同驗收簽章者 ${m.inspectionCount} 位；${m.paid?"已記錄付款":"未付款"}。`);
+            if (m.wageBatch) item.append(el("small",`薪資批次承諾：${m.wageBatch.worker_count} 人、合計 ${fmt.format(m.wageBatch.total)} TEST。這不證明個別工人已領款。`,"muted"));
+            list.append(item);
+          }
+          box.append(list);projects.append(box);
+        }
+        const findings = document.getElementById("findings");
+        for (const f of summary.findings) findings.append(el("p",`${f.finding_id} · ${f.summary}（稽核者：${f.auditor}）`));
+        const events = document.getElementById("events");
+        for (const event of ledger.events) {
+          const row = el("div",undefined,"event");
+          row.append(el("strong",`#${event.sequence} ${labels[event.type] ?? event.type} · ${event.actor}`),el("small",`SHA-256 ${event.hash}`));
+          events.append(row);
+        }
+      } catch (error) {
+        document.getElementById("status").textContent = `無法讀取或核對示範資料：${error.message}`;
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

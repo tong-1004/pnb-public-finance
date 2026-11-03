@@ -1,0 +1,159 @@
+{
+  "schema": "pnb-pilot-v1",
+  "currency": "TEST",
+  "actors": {
+    "budget_office": {
+      "role": "budget",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA1E3PPU4y1lRVLM79EXy08uezIGJMwHnT5nugVwLJhns=\n-----END PUBLIC KEY-----\n"
+    },
+    "procurement_office": {
+      "role": "procurement",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA8DFgLbtgKB5U8DJIJethZg/UN4uRMB26COmUsZ5eCNE=\n-----END PUBLIC KEY-----\n"
+    },
+    "site_inspector_a": {
+      "role": "inspector",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA1LCm/sRtsITSI2JHrvyXaCUoovK6eBak4MfVOKpMfCM=\n-----END PUBLIC KEY-----\n"
+    },
+    "site_inspector_b": {
+      "role": "inspector",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAtbmI10sr6/5191IGhA7aAvEmirsr1IyUInbeQyoKTM8=\n-----END PUBLIC KEY-----\n"
+    },
+    "finance_office": {
+      "role": "finance",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAG3D8HagXTNOADfDUoDr2JivLMyr8DVUKrJAkGtVm+lo=\n-----END PUBLIC KEY-----\n"
+    },
+    "builder": {
+      "role": "contractor",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAkFfz5pQ3o8Y8ZCIOUbsi445LAnylft/hiAAU4X8alfg=\n-----END PUBLIC KEY-----\n"
+    },
+    "independent_auditor": {
+      "role": "auditor",
+      "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAmrSwfpECiPC76pNB+SaVH64WYhiwP3ZQRQXxn1fsfRc=\n-----END PUBLIC KEY-----\n"
+    }
+  },
+  "events": [
+    {
+      "sequence": 0,
+      "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+      "type": "budget_authorized",
+      "actor": "budget_office",
+      "payload": {
+        "ocid": "ocds-pnb-demo-001",
+        "title": "示範：社區飲水設施修繕",
+        "amount": 100000,
+        "authorization_sha256": "fd962f6d36b7fe581104ab99581c043d8196db978b972914cf88f4807b24c491"
+      },
+      "signature": "56f5657f8565f5c85de7e284d716370093e5bd5b0f7c4f869b8a6835131aa4a5fbd124bb09986a7024928ad74fa2de25bb769dada46ebb6418866594955c4b02",
+      "hash": "87d68de258f915e3a59c797f42f03dc1e4a7a6ea43a3babc15add628c6c8dcf4"
+    },
+    {
+      "sequence": 1,
+      "previous": "87d68de258f915e3a59c797f42f03dc1e4a7a6ea43a3babc15add628c6c8dcf4",
+      "type": "tender_published",
+      "actor": "procurement_office",
+      "payload": {
+        "ocid": "ocds-pnb-demo-001",
+        "notice_sha256": "5afc77bc5dcecdb28ba12a74ab8f9120c10ae63fb25eaf7f23575d100069b95a"
+      },
+      "signature": "3c6c9dad5dd445af93039beff4cf962837d85882818b1fcd056f1e5d972c7fc63e0d2a3c00da677749fe63c0217f1be6e8c70df79ebc92453b449b4a998d3606",
+      "hash": "02a889ef1a5e47a13a174d7347b664c8f0cac93a159e5e9baf04c2af42f688ed"
+    },
+    {
+      "sequence": 2,
+      "previous": "02a889ef1a5e47a13a174d7347b664c8f0cac93a159e5e9baf04c2af42f688ed",
+      "type": "contract_awarded",
+      "actor": "procurement_office",
+      "payload": {
+        "ocid": "ocds-pnb-demo-001",
+        "contractor": "builder",
+        "amount": 80000,
+        "contract_sha256": "15a8815c70a7041d8bcd6c6633d9870c11bbf681dc72d0b4f36601e62e000147",
+        "milestones": [
+          {
+            "id": "inspection",
+            "title": "現場檢查與材料確認",
+            "amount": 30000
+          },
+          {
+            "id": "repair",
+            "title": "修繕與功能驗收",
+            "amount": 50000
+          }
+        ]
+      },
+      "signature": "f5580f9cb1bdc3774f864c0ef0ec132f6f2553f2d7dda7ee41d17d24b08d19c0ccb7f796aace0039ae5aa9b9a1248765373dd03d8b35046aef4c0cb9c3ee0b0d",
+      "hash": "f1faf4264fe1ac915d2fd094178787efb9fc66e3c6da62f376e122b5e2ae93b7"
+    },
+    {
+      "sequence": 3,
+      "previous": "f1faf4264fe1ac915d2fd094178787efb9fc66e3c6da62f376e122b5e2ae93b7",
+      "type": "milestone_attested",
+      "actor": "site_inspector_a",
+      "payload": {
+        "ocid": "ocds-pnb-demo-001",
+        "milestone": "inspection",
+        "evidence_sha256": "2b8b7588f4c55aa1eb13216a8fac40ef2c163e945369cf6bf0d291d2d061f0ef"
+      },
+      "signature": "0f936be0e2cdfb4c56369d15904301654730284d5fc394ac6acfa9ab7e8d7af4d56c2f56350dc165dc6e679628a9e15040ae3b1272005351f307c4afda49cb0f",
+      "hash": "e34aa5490bb98f717bd566cfaa33cf93e7009416ba286db683104f1d39132cbd"
+    },
+    {
+      "sequence": 4,
+      "previous": "e34aa5490bb98f717bd566cfaa33cf93e7009416ba286db683104f1d39132cbd",
+      "type": "milestone_attested",
+      "actor": "site_inspector_b",
+      "payload": {
+        "ocid": "ocds-pnb-demo-001",
+        "milestone": "inspection",
+        "evidence_sha256": "f3076eb95af1cff1e18670d845786fdca9a8adb096964d3c7995c3bc6f4034d9"
+      },
+      "signature": "db017a632648c05a9d2108475da63ce947269a3fd3567e7a7461e9be821d268fdfe63cc4e06fa96f2a747e0143215b282304591e944e098dc55a99462522bc08",
+      "hash": "03081260c80eeb2a9b5d2ba6be2acba12989108dd4ea0796853515ec5284f34a"
+    },
+    {
+      "sequence": 5,
+      "previous": "03081260c80eeb2a9b5d2ba6be2acba12989108dd4ea0796853515ec5284f34a",
+      "type": "payment_recorded",
+      "actor": "finance_office",
+      "payload": {
+        "ocid": "ocds-pnb-demo-001",
+        "milestone": "inspection",
+        "amount": 30000,
+        "payee": "builder",
+        "transaction_id": "DEMO-PAY-001",
+        "receipt_sha256": "72ec99f40fa199c218a21ee10a332368830ed2532b2ed668331f3afaa5c3fbdb"
+      },
+      "signature": "dc1352ead11156c8cedc29681b750ec26315b1594355d61258f19d2faf0e4ee585d2a0020af1f578e299c1d7a2ddf359bc1fc3b1c3d3d71e6fa12d1b3ad9de07",
+      "hash": "077ec4272d7a4162f4b2ce7b9f959ca52da0f4d6f61a30968dd48289798825c2"
+    },
+    {
+      "sequence": 6,
+      "previous": "077ec4272d7a4162f4b2ce7b9f959ca52da0f4d6f61a30968dd48289798825c2",
+      "type": "wage_batch_committed",
+      "actor": "builder",
+      "payload": {
+        "ocid": "ocds-pnb-demo-001",
+        "milestone": "inspection",
+        "worker_count": 3,
+        "total": 18000,
+        "proof_sha256": "ffd44a7d569423cc6954f592f158453bfd8f78cbb22a7b7f4b7543b357664fb6"
+      },
+      "signature": "ca869fd4e41eb8da506a59125816a6fdb5c789d8bb96c4d2cc442dedfac74b7e173e66a0ed8dfcfb86e0fd8b8351f45cc37a55103a93386a7330dece02a04a09",
+      "hash": "26b6afb2adbe656fa26e3c00dde1116b86a861fa69f67a15a78bbd06f4c248cc"
+    },
+    {
+      "sequence": 7,
+      "previous": "26b6afb2adbe656fa26e3c00dde1116b86a861fa69f67a15a78bbd06f4c248cc",
+      "type": "audit_finding_opened",
+      "actor": "independent_auditor",
+      "payload": {
+        "ocid": "ocds-pnb-demo-001",
+        "finding_id": "DEMO-FINDING-001",
+        "summary": "示範待查：現場材料證明需由獨立稽核者比對原件。",
+        "evidence_sha256": "0f1953153bc124d3b2c706211cf2317b9d775a8a06e7e62623d612eceea7c357"
+      },
+      "signature": "be9e7cd3eb36ee913fcbcb51149353c28f446a4ec72e4684e1c84f949d307b2f62aff0e199686279ee5b380b34a96639d2a90bd9697f7061b90613d48f222b00",
+      "hash": "2c58e9a786ad464e3b45c67dc478a4bb32a0516a2ad84e4d699e49f130aaae01"
+    }
+  ]
+}
