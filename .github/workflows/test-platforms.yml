@@ -24,4 +24,4 @@ jobs:
         with:
           node-version: '24.22.1'
       - name: Verify protocol and wallet logic
-        run: node --test pnb/test.mjs pnb/peer.test.mjs pnb/settlement.test.mjs pnb/evm.test.mjs pnb/trade.test.mjs
+        run: node --test pnb/test.mjs pnb/peer.test.mjs pnb/settlement.test.mjs pnb/evm.test.mjs pnb/trade.test.mjs pnb/app.test.mjs

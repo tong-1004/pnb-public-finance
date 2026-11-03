@@ -11,9 +11,11 @@ const home = resolve(get("--home", process.env.PNB_HOME ?? "pnb-workspace"));
 const port = Number(get("--port", "8800"));
 const host = get("--host", "127.0.0.1");
 const mirrorAt = args.indexOf("--mirror");
+const pollSeconds = Number(get("--poll-seconds", "10"));
 
 try {
   if (mirrorAt >= 0) {
+    if (!Number.isSafeInteger(pollSeconds) || pollSeconds < 2 || pollSeconds > 3600) throw new Error("Polling interval must be 2–3600 seconds");
     const [peer, trustRoot, count, head] = args.slice(mirrorAt + 1, mirrorAt + 5);
     if (!peer || !trustRoot || count === undefined || !head) throw new Error("--mirror requires peer URL, trust root, event count and head");
     const mirrorDir = join(home, "mirror");
@@ -35,7 +37,7 @@ try {
         }
       } catch (error) { console.error(`鏡像同步遭拒：${error.message}`); }
       finally { busy = false; }
-    }, 10000);
+    }, pollSeconds * 1000);
     const server = startPeerServer(mirrorDir, { port, host });
     server.on("listening", () => console.log(`鏡像介面：http://${host}:${server.address().port}/`));
   } else {

@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '24.22.1'
       - name: Run protocol and wallet tests
-        run: node --test pnb/test.mjs pnb/peer.test.mjs pnb/settlement.test.mjs pnb/evm.test.mjs pnb/trade.test.mjs
+        run: node --test pnb/test.mjs pnb/peer.test.mjs pnb/settlement.test.mjs pnb/evm.test.mjs pnb/trade.test.mjs pnb/app.test.mjs
       - name: Build portable Windows archive
         shell: pwsh
         run: ./packaging/build-windows.ps1
@@ -70,7 +70,7 @@ jobs:
         with:
           node-version: '24.22.1'
       - name: Run protocol and wallet tests
-        run: node --test pnb/test.mjs pnb/peer.test.mjs pnb/settlement.test.mjs pnb/evm.test.mjs pnb/trade.test.mjs
+        run: node --test pnb/test.mjs pnb/peer.test.mjs pnb/settlement.test.mjs pnb/evm.test.mjs pnb/trade.test.mjs pnb/app.test.mjs
       - name: Build portable archive
         shell: bash
         run: bash packaging/build-unix.sh
@@ -87,6 +87,11 @@ jobs:
           grep -Eq '/Start-PNB\.sh$' <<< "${entries}"
           grep -Eq '/Start-TEST-Trade\.sh$' <<< "${entries}"
           grep -Eq '/pnb/trade\.mjs$' <<< "${entries}"
+          smoke_dir="$(mktemp -d)"
+          tar -xzf "${archive}" -C "${smoke_dir}"
+          package_dir="$(find "${smoke_dir}" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+          "${package_dir}/node" --version
+          "${package_dir}/node" "${package_dir}/pnb/cli.mjs" verify "${package_dir}/pnb/sample-ledger.json"
           if command -v sha256sum >/dev/null 2>&1; then
             digest="$(sha256sum "${archive}" | awk '{print $1}')"
           else
