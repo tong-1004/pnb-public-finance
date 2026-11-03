@@ -1,4 +1,4 @@
-name: Build and publish Windows TEST pilot
+name: Build and publish portable TEST pilot
 
 on:
   push:
@@ -51,3 +51,47 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $zip = Get-ChildItem -LiteralPath build -Filter 'pnb-pilot-win-x64-*.zip' -File | Select-Object -First 1
           gh release create $env:GITHUB_REF_NAME $zip.FullName build/SHA256SUMS.txt --verify-tag --prerelease --title "PNB $env:GITHUB_REF_NAME TEST pilot" --notes 'Unsigned TEST pilot. Sepolia wallet transfer is testnet-only. No audited escrow contract or mainnet asset settlement.'
+
+  unix-package:
+    needs: windows-package
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - name: Run protocol and wallet tests
+        run: node --test pnb/test.mjs pnb/peer.test.mjs pnb/settlement.test.mjs pnb/evm.test.mjs pnb/trade.test.mjs
+      - name: Build portable archive
+        shell: bash
+        run: bash packaging/build-unix.sh
+      - name: Verify package and upload to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          archive="$(find build -maxdepth 1 -type f -name 'pnb-pilot-*.tar.gz' -print -quit)"
+          if [[ -z "${archive}" ]]; then echo 'Unix archive missing' >&2; exit 1; fi
+          entries="$(tar -tzf "${archive}")"
+          if grep -Eq '(^|/)(\.git|pnb-workspace|node-keys|node-data|PNB\.txt)(/|$)|\.private\.pem$' <<< "${entries}"; then echo 'Forbidden file in archive' >&2; exit 1; fi
+          grep -Eq '/Start-PNB\.sh$' <<< "${entries}"
+          grep -Eq '/Start-TEST-Trade\.sh$' <<< "${entries}"
+          grep -Eq '/pnb/trade\.mjs$' <<< "${entries}"
+          if command -v sha256sum >/dev/null 2>&1; then
+            digest="$(sha256sum "${archive}" | awk '{print $1}')"
+          else
+            digest="$(shasum -a 256 "${archive}" | awk '{print $1}')"
+          fi
+          checksum="build/SHA256SUMS-$(uname -s)-$(uname -m).txt"
+          printf '%s  %s\n' "${digest}" "$(basename "${archive}")" > "${checksum}"
+          gh release upload "${GITHUB_REF_NAME}" "${archive}" "${checksum}"

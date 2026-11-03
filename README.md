@@ -7,9 +7,13 @@
 
 ## Windows 可攜版與 Sepolia 測試網
 
-從[公開測試版](https://github.com/tong-1004/pnb-public-finance/releases/tag/v0.3.2-test)下載 Windows ZIP 與 `SHA256SUMS.txt`，核對雜湊後解壓並執行 `Start-PNB.cmd`。也可從公開原始碼執行 `powershell -ExecutionPolicy Bypass -File packaging/build-windows.ps1` 自行建包；腳本會下載官方 Node.js 執行環境並核對 SHA-256。啟動器會用隨附的 Node.js 啟動一個本機節點，資料預設存於使用者的 `%LOCALAPPDATA%\PNB-Pilot`，不會寫進解壓目錄。啟動後開啟 <http://127.0.0.1:8800/>；需要自備瀏覽器錢包時可到 <http://127.0.0.1:8800/evm> 預覽並由錢包確認 **Sepolia 測試 ETH** 轉帳。每筆限 1 測試 ETH。錢包、測試 ETH 與網路費用需自行準備；此頁沒有合約託管，也不能處理主網有價資產。
+從[公開測試版](https://github.com/tong-1004/pnb-public-finance/releases)下載 Windows ZIP 與 `SHA256SUMS.txt`，核對雜湊後解壓並執行 `Start-PNB.cmd`。也可從公開原始碼執行 `powershell -ExecutionPolicy Bypass -File packaging/build-windows.ps1` 自行建包；腳本會下載官方 Node.js 執行環境並核對 SHA-256。啟動器會用隨附的 Node.js 啟動一個本機節點，資料預設存於使用者的 `%LOCALAPPDATA%\PNB-Pilot`，不會寫進解壓目錄。啟動後開啟 <http://127.0.0.1:8800/>；需要自備瀏覽器錢包時可到 <http://127.0.0.1:8800/evm> 預覽並由錢包確認 **Sepolia 測試 ETH** 轉帳。每筆限 1 測試 ETH。錢包、測試 ETH 與網路費用需自行準備；此頁沒有合約託管，也不能處理主網有價資產。
 
-原始碼可用 `node --test pnb/test.mjs pnb/peer.test.mjs pnb/settlement.test.mjs pnb/evm.test.mjs` 驗證。目前只有模擬錢包測試，尚未完成實際 Sepolia 鏈上交易驗收。
+原始碼可用 `node --test pnb/test.mjs pnb/peer.test.mjs pnb/settlement.test.mjs pnb/evm.test.mjs pnb/trade.test.mjs` 驗證。目前只有模擬錢包測試，尚未完成實際 Sepolia 鏈上交易驗收。
+
+## Linux／macOS 可攜版
+
+從[公開測試版](https://github.com/tong-1004/pnb-public-finance/releases)選擇符合系統與處理器架構的 `pnb-pilot-linux-*.tar.gz` 或 `pnb-pilot-darwin-*.tar.gz`，下載對應的 `SHA256SUMS-Linux-*.txt` 或 `SHA256SUMS-Darwin-*.txt` 核對後解壓，執行 `./Start-PNB.sh`。互動式無價值 TEST 發行與轉帳使用 `./Start-TEST-Trade.sh`。壓縮包含已核對官方雜湊的 Node 執行環境；資料預設存於使用者資料目錄，亦可設定 `PNB_HOME`。此版本仍只有 TEST 模擬帳本與 Sepolia 測試幣入口。
 
 ## 一個命令啟動本機 TEST 節點
 
