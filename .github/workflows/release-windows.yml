@@ -1,0 +1,51 @@
+name: Build and publish Windows TEST pilot
+
+on:
+  push:
+    tags:
+      - 'v*-test'
+
+permissions:
+  contents: write
+
+jobs:
+  windows-package:
+    runs-on: windows-2025
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - name: Run protocol and wallet tests
+        run: node --test pnb/test.mjs pnb/peer.test.mjs pnb/settlement.test.mjs pnb/evm.test.mjs
+      - name: Build portable Windows archive
+        shell: pwsh
+        run: ./packaging/build-windows.ps1
+      - name: Check package contents and checksum
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Get-ChildItem -LiteralPath build -Filter 'pnb-pilot-win-x64-*.zip' -File | Select-Object -First 1
+          if (-not $zip) { throw 'Windows archive missing' }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
+          try {
+            $entries = @($archive.Entries | ForEach-Object { $_.FullName.Replace('\', '/') })
+            if ($entries -match '(^|/)(\.git|pnb-workspace|node-keys|node-data|PNB\.txt)(/|$)|\.private\.pem$') { throw 'Forbidden file in release archive' }
+            if (-not ($entries -match '/Start-PNB\.cmd$')) { throw 'Launcher missing' }
+            if (-not ($entries -match '/pnb/evm\.html$')) { throw 'Sepolia page missing' }
+          } finally { $archive.Dispose() }
+          $hash = (Get-FileHash -LiteralPath $zip.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($zip.Name)" | Set-Content -LiteralPath build/SHA256SUMS.txt -Encoding ascii
+      - name: Publish prerelease with archive and checksum
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Get-ChildItem -LiteralPath build -Filter 'pnb-pilot-win-x64-*.zip' -File | Select-Object -First 1
+          gh release create $env:GITHUB_REF_NAME $zip.FullName build/SHA256SUMS.txt --verify-tag --prerelease --title "PNB $env:GITHUB_REF_NAME TEST pilot" --notes 'Unsigned TEST pilot. Sepolia wallet transfer is testnet-only. No audited escrow contract or mainnet asset settlement.'
