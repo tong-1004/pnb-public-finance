@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PNB｜Sepolia 測試幣轉帳</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#172c38;background:#f2f5f7}*{box-sizing:border-box}body{margin:0}main{max-width:700px;margin:auto;padding:1rem}h1{font-size:clamp(1.5rem,4vw,2.2rem)}.card{background:white;border:1px solid #d6dfe5;border-radius:.7rem;padding:1.2rem;margin:1rem 0}label{display:block;margin:1rem 0;font-weight:600}input{display:block;width:100%;margin:.4rem 0;padding:.7rem;font:inherit;border:1px solid #748791;border-radius:.35rem}button{font:inherit;padding:.7rem 1rem;border:0;border-radius:.35rem;color:white;background:#145c7a;cursor:pointer;margin:.3rem .3rem .3rem 0}button:disabled{opacity:.55;cursor:not-allowed}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #d89c00}p{line-height:1.6}code{overflow-wrap:anywhere}#status{min-height:2rem}
+  </style>
+</head>
+<body><main>
+  <p><a href="/">← 返回公開紀錄</a></p>
+  <h1>Sepolia 測試幣轉帳</h1>
+  <div class="card"><strong>測試網功能</strong><p>此頁只允許 Ethereum Sepolia（chain ID 11155111）的原生測試 ETH 轉帳，每筆上限 1 測試 ETH。測試幣沒有真實價值。這不是合約託管或公共財政付款證明。交易須在自己的錢包確認，仍需測試 ETH 支付網路費用。</p></div>
+  <div class="card">
+    <button id="connect" type="button">連接錢包</button><p id="wallet">尚未連接</p>
+    <label for="recipient">收款地址</label><input id="recipient" autocomplete="off" spellcheck="false" placeholder="0x…">
+    <label for="amount">測試 ETH 金額</label><input id="amount" inputmode="decimal" autocomplete="off" placeholder="0.01">
+    <button id="preview" type="button">預覽交易</button>
+    <div id="details" aria-live="polite"></div>
+    <button id="send" type="button" disabled>在錢包確認並送出</button>
+    <p id="status" role="status" aria-live="polite"></p>
+  </div>
+  <script type="module" src="/evm-ui.mjs"></script>
+</main></body></html>

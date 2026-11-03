@@ -10,6 +10,9 @@ const ROOT = /^[a-f0-9]{64}$/;
 const ZERO = "0".repeat(64);
 const MAX_LEDGER_BYTES = 10 * 1024 * 1024;
 const html = readFileSync(fileURLToPath(new URL("./index.html", import.meta.url)));
+const evmHtml = readFileSync(fileURLToPath(new URL("./evm.html", import.meta.url)));
+const evmUi = readFileSync(fileURLToPath(new URL("./evm-ui.mjs", import.meta.url)));
+const evmHelper = readFileSync(fileURLToPath(new URL("./evm.mjs", import.meta.url)));
 
 function fail(message) { throw new Error(message); }
 function ledgerPath(dir) { return join(dir, "ledger.json"); }
@@ -189,6 +192,9 @@ export function startPeerServer(dir, { port = 8788, host = "127.0.0.1" } = {}) {
     try {
       const { bundle, summary } = readVerified(dir);
       if (path === "/") { body = html; type = "text/html; charset=utf-8"; }
+      else if (path === "/evm") { body = evmHtml; type = "text/html; charset=utf-8"; }
+      else if (path === "/evm-ui.mjs") { body = evmUi; type = "text/javascript; charset=utf-8"; }
+      else if (path === "/evm.mjs") { body = evmHelper; type = "text/javascript; charset=utf-8"; }
       else if (path === "/api/ledger") { body = Buffer.from(JSON.stringify(bundle)); type = "application/json; charset=utf-8"; }
       else if (path === "/api/summary") { body = Buffer.from(JSON.stringify({ valid: true, ...summary })); type = "application/json; charset=utf-8"; }
       else if (path === "/api/checkpoint") {

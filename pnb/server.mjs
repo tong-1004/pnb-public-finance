@@ -6,6 +6,9 @@ import { verifyLedger } from "./ledger.mjs";
 const port = Number(process.env.PNB_PORT ?? 8788);
 if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw new Error("Invalid PNB_PORT");
 const html = readFileSync(fileURLToPath(new URL("./index.html", import.meta.url)));
+const evmHtml = readFileSync(fileURLToPath(new URL("./evm.html", import.meta.url)));
+const evmUi = readFileSync(fileURLToPath(new URL("./evm-ui.mjs", import.meta.url)));
+const evmHelper = readFileSync(fileURLToPath(new URL("./evm.mjs", import.meta.url)));
 const bundle = JSON.parse(readFileSync(fileURLToPath(new URL("./sample-ledger.json", import.meta.url)), "utf8"));
 const summary = verifyLedger(bundle);
 
@@ -20,6 +23,12 @@ const server = createServer((req, res) => {
   if (path === "/") {
     body = html;
     type = "text/html; charset=utf-8";
+  } else if (path === "/evm") {
+    body = evmHtml; type = "text/html; charset=utf-8";
+  } else if (path === "/evm-ui.mjs") {
+    body = evmUi; type = "text/javascript; charset=utf-8";
+  } else if (path === "/evm.mjs") {
+    body = evmHelper; type = "text/javascript; charset=utf-8";
   } else if (path === "/api/ledger") {
     body = Buffer.from(JSON.stringify(bundle));
     type = "application/json; charset=utf-8";

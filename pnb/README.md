@@ -56,11 +56,43 @@ node pnb/node.mjs sync mirror-data http://127.0.0.1:8791/
 
 `keygen` 和 `init` 命令也允許不同持有人分別生成金鑰，再用公開金鑰組成 `actors.json`；正式部署時各角色應自行保管私鑰。公開帳本內只有公鑰與簽章，沒有私鑰。單一發布者仍可拒絕新事件；多鏡像保留已見歷史，但本版本沒有分散式共識、抗女巫攻擊、法定身分認證或自動支付。若獨立鏡像從未見過某段歷史，必須靠獨立取得的檢查點防範發布者提供另一條有效簽章分叉。
 
+## TEST 交易與條件式鎖定
+
+`node pnb/app.mjs` 可一個命令建立並啟動本機 TEST 發布節點；以 `--home` 指定資料目錄、`--port` 指定埠。重啟會沿用既有資料。其資料和示範私鑰預設放在 `pnb-workspace/`；勿把該目錄上傳。鏡像可用同一入口：
+
+```powershell
+$checkpoint = node pnb/node.mjs inspect pnb-workspace/publisher | ConvertFrom-Json
+node pnb/app.mjs --home pnb-workspace/mirror-home --mirror http://127.0.0.1:8800/ $checkpoint.trustRoot $checkpoint.eventCount $checkpoint.head --port 8801
+```
+
+鏡像每 10 秒檢查並接受完整延伸。上述從發布端讀檢查點僅為本機示範；部署在不同機器時，應獨立比對並保存。
+
+在另一個終端，輸入合約檔與整數 TEST 金額即可建立**模擬**轉帳。付款者私鑰本機簽章，接收者餘額由所有節點重播得出；同一簽章不能當成新事件重放。
+
+```powershell
+node pnb/node.mjs test-credit pnb-workspace/publisher budget_office pnb-workspace/keys/budget_office.private.pem budget_office 1000
+node pnb/node.mjs test-pay pnb-workspace/publisher budget_office pnb-workspace/keys/budget_office.private.pem builder 125 pnb/examples/test-contract.txt
+```
+
+`test-credit` 由預算角色發行，整條帳本累計上限 1,000,000 TEST。這是示範權限而非無主貨幣。`test-pay` 的合約檔只取 SHA-256 放進交易，不能證明雙方理解或履行文字；不提供合約檔時使用明確的「無合約」承諾。
+
+條件式鎖定需先在本機準備密語檔，付款者輸入合約檔與金額；收款者得知密語後以自己的私鑰領取。領取事件會公開密語，請**只用無價值的示範密語**。密語錯誤或未授權者無法領取；取消需付款者提出、收款者另行簽署同意。這是雜湊鎖定示範，不會判定真實工程或商品是否履約。
+
+```powershell
+Set-Content -LiteralPath pnb-workspace/demo.secret -Value 'demo-release-phrase' -Encoding utf8
+node pnb/node.mjs test-lock pnb-workspace/publisher budget_office pnb-workspace/keys/budget_office.private.pem builder 200 pnb/examples/test-contract.txt pnb-workspace/demo.secret
+# 從前一命令的輸出複製 escrow_id，再由收款者執行：
+$escrowId = '貼上 escrow_id'
+node pnb/node.mjs test-claim pnb-workspace/publisher builder pnb-workspace/keys/builder.private.pem $escrowId pnb-workspace/demo.secret
+```
+
+目前 TEST 金額只代表帳本內部狀態。另有 `/evm` 頁面可透過 EIP-1193 錢包預覽並發送 Sepolia 原生**測試 ETH** 轉帳；它與 TEST 帳本無連動，也不是合約託管。網頁只接受 Sepolia 鏈 ID、非零收款地址、每筆最多 1 測試 ETH；送出前由錢包再次確認。自動測試只使用模擬錢包，尚未完成真實 Sepolia 交易驗收。沒有 Ethereum 主網資產、法幣兌換或銀行清算。這些要依 [交付計畫](../PLAN.md)分段驗收，不能把頁面上的「付款紀錄」視為真實入帳。
+
 網頁使用已存放的 `sample-ledger.json`，啟動前會先驗證；下載檔應與它一致。`demo` 輸出的角色註冊表 SHA-256 應由不同保管者另行保存；獨立核驗時將它作為 `verify` 的第三個參數，才能發現整份角色註冊表被替換。第二次產生資料會得到新密鑰與新信任根；示範私鑰只留在當次程序記憶體，退出後即不能再新增事件。
 
 ## 公開資料與邊界
 
-- `currency: TEST` 是無價值測試單位；系統沒有銀行、錢包或公款介接，也不會自動付款。
+- `currency: TEST` 是無價值的本機帳本測試單位；本機帳本沒有銀行或公款介接，也不會自動付款。Sepolia 錢包頁只轉移測試幣，與本機帳本分離。
 - `authorization_sha256`、`contract_sha256`、`receipt_sha256` 等是文件承諾。示範值來自合成文字，**不是**真實文件；核驗者仍需取得文件原件並核對雜湊。
 - 薪資只公開人數、合計與證明文件承諾，不放工人姓名、地址、錢包或個人薪資。這也**不證明**個別工人已工作或已收款。實際稽核需依法取得必要資料、現場訪查與申訴。
 - 不同簽章金鑰只能證明由不同登記金鑰簽署；目前沒有法定身分、職權、利益衝突或機構獨立性認證。

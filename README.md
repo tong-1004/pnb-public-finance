@@ -3,6 +3,32 @@
 這是「人民核彈」制度願景的第一階段可運行示範，採用合成採購與無價值 `TEST` 單位；不涉及真實公款或政府資料。
 
 詳細操作與限制請見 [試點說明](pnb/README.md)。
+[分階段交付與驗收計畫](PLAN.md)列出下一步及尚未完成的項目。
+
+## Windows 可攜版與 Sepolia 測試網
+
+在 GitHub Releases 下載 `pnb-pilot-win-x64-*.zip`，解壓後執行 `Start-PNB.cmd`。它會用隨附的 Node.js 啟動一個本機節點，資料預設存於使用者的 `%LOCALAPPDATA%\PNB-Pilot`，不會寫進解壓目錄。啟動後開啟 <http://127.0.0.1:8800/>；需要自備瀏覽器錢包時可到 <http://127.0.0.1:8800/evm> 預覽並由錢包確認 **Sepolia 測試 ETH** 轉帳。每筆限 1 測試 ETH。錢包、測試 ETH 與網路費用需自行準備；此頁沒有合約託管，也不能處理主網有價資產。
+
+原始碼可用 `node --test pnb/test.mjs pnb/peer.test.mjs pnb/settlement.test.mjs pnb/evm.test.mjs` 驗證。目前只有模擬錢包測試，尚未完成實際 Sepolia 鏈上交易驗收。
+
+## 一個命令啟動本機 TEST 節點
+
+需要 Node.js 20 以上，在倉庫根目錄執行：
+
+```powershell
+node pnb/app.mjs
+```
+
+首次啟動會在忽略版本控制的 `pnb-workspace/` 產生合成資料與示範金鑰，並開啟 <http://127.0.0.1:8800/>；重啟會沿用原帳本。這是一個程序啟動**一個節點**。若要分散保管，其他參與者需在各自電腦執行同一程式的鏡像模式，並由獨立渠道取得檢查點。
+
+TEST 交易可用已登記角色金鑰操作。例如在另一個終端執行：
+
+```powershell
+node pnb/node.mjs test-credit pnb-workspace/publisher budget_office pnb-workspace/keys/budget_office.private.pem budget_office 1000
+node pnb/node.mjs test-pay pnb-workspace/publisher budget_office pnb-workspace/keys/budget_office.private.pem builder 125 pnb/examples/test-contract.txt
+```
+
+`test-credit` 是有 1,000,000 TEST 硬上限的合成額度發行；`test-pay` 是簽章後的帳內 TEST 轉移。兩者都不會轉移真實資產。
 
 ## 多節點示範
 

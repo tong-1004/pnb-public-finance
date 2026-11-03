@@ -30,9 +30,11 @@
   <main>
     <div class="warning"><strong>示範邊界：</strong>簽章與雜湊可檢查紀錄是否被事後修改；不能證明現場工作真的完成、銀行確實付款，或參與者具有法定身分。薪資只公開批次總額與人數，不公開工人姓名。</div>
     <p><a href="/api/ledger" download="pnb-demo-ledger.json">下載完整公開事件 JSON</a> · 在倉庫根目錄執行 <code>node pnb/cli.mjs verify &lt;下載檔路徑&gt;</code> 可獨立重播核對。</p>
+    <p><a href="/evm">開啟 Sepolia 測試幣轉帳入口</a>（需自備錢包與測試幣）</p>
     <div id="status" role="status">正在核對事件鏈…</div>
     <div class="cards" id="metrics"></div>
     <section><h2>採購流程與資金去向</h2><div id="projects"></div></section>
+    <section><h2>TEST 餘額與合約鎖定</h2><p class="muted">僅供無價值模擬；這些數字不是錢包資產或實際付款。</p><div id="test-balances"></div><div id="test-escrows"></div></section>
     <section><h2>獨立稽核與待查事項</h2><div id="findings"></div></section>
     <section><h2>可驗證事件</h2><div id="events"></div></section>
   </main>
@@ -41,7 +43,10 @@
     const labels = {
       budget_authorized:"預算授權",tender_published:"招標公告",contract_awarded:"決標與契約",
       milestone_attested:"里程碑驗收",payment_recorded:"付款紀錄",
-      wage_batch_committed:"薪資批次承諾",audit_finding_opened:"稽核待查事項"
+      wage_batch_committed:"薪資批次承諾",audit_finding_opened:"稽核待查事項",
+      test_credit_issued:"TEST 額度發行",test_transfer:"TEST 轉帳",test_escrow_opened:"TEST 合約鎖定",
+      test_escrow_claimed:"TEST 條件領取",test_escrow_cancel_requested:"TEST 取消請求",
+      test_escrow_cancel_accepted:"TEST 雙方取消"
     };
     const el = (tag, text, className) => {
       const node = document.createElement(tag);
@@ -78,6 +83,12 @@
           }
           box.append(list);projects.append(box);
         }
+        const balances = document.getElementById("test-balances");
+        const balanceEntries = Object.entries(summary.testBalances ?? {});
+        if (!balanceEntries.length) balances.append(el("p","尚無 TEST 額度。","muted"));
+        for (const [actor, amount] of balanceEntries) balances.append(el("p",`${actor}：${fmt.format(amount)} TEST`));
+        const escrows = document.getElementById("test-escrows");
+        for (const e of summary.testEscrows ?? []) escrows.append(el("p",`${e.id} · ${e.payer} → ${e.payee} · ${fmt.format(e.amount)} TEST · ${e.status}`));
         const findings = document.getElementById("findings");
         for (const f of summary.findings) findings.append(el("p",`${f.finding_id} · ${f.summary}（稽核者：${f.auditor}）`));
         const events = document.getElementById("events");

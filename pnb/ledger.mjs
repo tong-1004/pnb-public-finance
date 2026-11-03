@@ -2,6 +2,7 @@ import { createHash, createPublicKey, sign, verify } from "node:crypto";
 
 const ZERO = "0".repeat(64);
 const SHA256 = /^[a-f0-9]{64}$/;
+const MAX_TEST_SUPPLY = 1_000_000;
 const ROLES = {
   budget_authorized: "budget",
   tender_published: "procurement",
@@ -10,7 +11,14 @@ const ROLES = {
   payment_recorded: "finance",
   wage_batch_committed: "contractor",
   audit_finding_opened: "auditor",
+  test_credit_issued: "budget",
+  test_transfer: null,
+  test_escrow_opened: null,
+  test_escrow_claimed: null,
+  test_escrow_cancel_requested: null,
+  test_escrow_cancel_accepted: null,
 };
+const ACTOR_ROLES = new Set(["budget", "procurement", "inspector", "finance", "contractor", "auditor"]);
 
 function canonical(value) {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
@@ -58,10 +66,33 @@ function project(state, ocid) {
   return found;
 }
 
+function account(actors, id, label) {
+  string(id, label, 100);
+  if (!Object.hasOwn(actors, id)) fail(`${label} is not a registered actor`);
+}
+
+function debit(state, actor, amount) {
+  if ((state.balances[actor] ?? 0) < amount) fail("Insufficient TEST balance");
+  state.balances[actor] -= amount;
+}
+
+function credit(state, actor, amount) {
+  const next = (state.balances[actor] ?? 0) + amount;
+  if (!Number.isSafeInteger(next)) fail("TEST balance overflow");
+  state.balances[actor] = next;
+}
+
+function spendNonce(state, actor, nonce) {
+  integer(nonce, "nonce");
+  const expected = (state.nonces[actor] ?? 0) + 1;
+  if (nonce !== expected) fail(`Invalid nonce: expected ${expected}`);
+  state.nonces[actor] = nonce;
+}
+
 function apply(state, event, actors) {
   const { type, actor, payload } = event;
   if (!Object.hasOwn(ROLES, type)) fail("Unknown event type");
-  if (actors[actor]?.role !== ROLES[type]) fail("Actor lacks required role");
+  if (ROLES[type] && actors[actor]?.role !== ROLES[type]) fail("Actor lacks required role");
   object(payload, "payload");
   if (type === "budget_authorized") {
     keys(payload, ["ocid", "title", "amount", "authorization_sha256"], type);
@@ -146,6 +177,67 @@ function apply(state, event, actors) {
     if (state.findingIds.has(payload.finding_id)) fail("Duplicate audit finding");
     state.findingIds.add(payload.finding_id);
     state.findings.push({ ...payload, auditor: actor });
+  } else if (type === "test_credit_issued") {
+    keys(payload, ["issuance_id", "to", "amount", "authorization_sha256"], type);
+    string(payload.issuance_id, "issuance_id", 100);
+    account(actors, payload.to, "to");
+    integer(payload.amount, "TEST issuance amount");
+    digest(payload.authorization_sha256, "authorization_sha256");
+    if (state.issuanceIds.has(payload.issuance_id)) fail("Duplicate TEST issuance");
+    if (state.issuedTotal + payload.amount > MAX_TEST_SUPPLY) fail("TEST supply cap exceeded");
+    state.issuanceIds.add(payload.issuance_id);
+    state.issuedTotal += payload.amount;
+    credit(state, payload.to, payload.amount);
+  } else if (type === "test_transfer") {
+    keys(payload, ["transfer_id", "to", "amount", "contract_sha256", "nonce"], type);
+    string(payload.transfer_id, "transfer_id", 100);
+    account(actors, payload.to, "to");
+    integer(payload.amount, "TEST transfer amount");
+    digest(payload.contract_sha256, "contract_sha256");
+    if (actor === payload.to) fail("Self transfer is not allowed");
+    if (state.transferIds.has(payload.transfer_id)) fail("Duplicate TEST transfer");
+    spendNonce(state, actor, payload.nonce);
+    debit(state, actor, payload.amount);
+    credit(state, payload.to, payload.amount);
+    state.transferIds.add(payload.transfer_id);
+  } else if (type === "test_escrow_opened") {
+    keys(payload, ["escrow_id", "to", "amount", "contract_sha256", "secret_sha256", "nonce"], type);
+    string(payload.escrow_id, "escrow_id", 100);
+    account(actors, payload.to, "to");
+    integer(payload.amount, "TEST escrow amount");
+    digest(payload.contract_sha256, "contract_sha256");
+    digest(payload.secret_sha256, "secret_sha256");
+    if (actor === payload.to) fail("Self escrow is not allowed");
+    if (Object.hasOwn(state.escrows, payload.escrow_id)) fail("Duplicate TEST escrow");
+    spendNonce(state, actor, payload.nonce);
+    debit(state, actor, payload.amount);
+    state.escrows[payload.escrow_id] = {
+      id: payload.escrow_id, payer: actor, payee: payload.to, amount: payload.amount,
+      contract_sha256: payload.contract_sha256, secret_sha256: payload.secret_sha256,
+      status: "open", cancellationRequested: false,
+    };
+  } else if (type === "test_escrow_claimed") {
+    keys(payload, ["escrow_id", "secret"], type);
+    string(payload.escrow_id, "escrow_id", 100);
+    string(payload.secret, "secret", 200);
+    const escrow = state.escrows[payload.escrow_id];
+    if (!escrow || escrow.status !== "open" || actor !== escrow.payee) fail("Escrow cannot be claimed");
+    if (sha256(payload.secret) !== escrow.secret_sha256) fail("Escrow condition is not satisfied");
+    escrow.status = "claimed";
+    credit(state, escrow.payee, escrow.amount);
+  } else if (type === "test_escrow_cancel_requested") {
+    keys(payload, ["escrow_id"], type);
+    string(payload.escrow_id, "escrow_id", 100);
+    const escrow = state.escrows[payload.escrow_id];
+    if (!escrow || escrow.status !== "open" || actor !== escrow.payer || escrow.cancellationRequested) fail("Escrow cancellation cannot be requested");
+    escrow.cancellationRequested = true;
+  } else if (type === "test_escrow_cancel_accepted") {
+    keys(payload, ["escrow_id"], type);
+    string(payload.escrow_id, "escrow_id", 100);
+    const escrow = state.escrows[payload.escrow_id];
+    if (!escrow || escrow.status !== "open" || actor !== escrow.payee || !escrow.cancellationRequested) fail("Escrow cancellation cannot be accepted");
+    escrow.status = "cancelled";
+    credit(state, escrow.payer, escrow.amount);
   }
 }
 
@@ -157,7 +249,7 @@ export function verifyLedger(bundle) {
   for (const [id, actor] of Object.entries(bundle.actors)) {
     string(id, "actor id", 100);
     keys(actor, ["role", "publicKey"], "actor");
-    if (!Object.values(ROLES).includes(actor.role)) fail("Unknown actor role");
+    if (!ACTOR_ROLES.has(actor.role)) fail("Unknown actor role");
     string(actor.publicKey, "publicKey", 500);
   }
   const publicKeys = new Set();
@@ -170,7 +262,11 @@ export function verifyLedger(bundle) {
     if (publicKeys.has(identity)) fail("Two actors cannot share one public key");
     publicKeys.add(identity);
   }
-  const state = { projects: Object.create(null), transactionIds: new Set(), findingIds: new Set(), findings: [] };
+  const state = {
+    projects: Object.create(null), transactionIds: new Set(), findingIds: new Set(), findings: [],
+    balances: Object.create(null), nonces: Object.create(null), escrows: Object.create(null),
+    issuanceIds: new Set(), transferIds: new Set(), issuedTotal: 0,
+  };
   let previous = ZERO;
   for (const [index, event] of bundle.events.entries()) {
     keys(event, ["sequence", "previous", "type", "actor", "payload", "signature", "hash"], "event");
@@ -200,6 +296,9 @@ export function verifyLedger(bundle) {
     eventCount: bundle.events.length, head: previous,
     trustRoot: sha256(canonical({ schema: bundle.schema, currency: bundle.currency, actors: bundle.actors })),
     projects, findings: state.findings,
+    testBalances: { ...state.balances }, testNonces: { ...state.nonces },
+    testIssuedTotal: state.issuedTotal,
+    testEscrows: Object.values(state.escrows).map(({ secret_sha256, ...item }) => item),
   };
 }
 

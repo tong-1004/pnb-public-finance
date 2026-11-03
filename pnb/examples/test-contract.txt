@@ -1,0 +1,6 @@
+PNB TEST CONTRACT ONLY
+Payer: budget_office
+Payee: builder
+Subject: synthetic delivery of public facility materials
+Settlement condition: payee reveals the agreed demonstration secret.
+This text creates no real-world payment or legal entitlement.

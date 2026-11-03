@@ -1,4 +1,6 @@
 import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { sha256 } from "./ledger.mjs";
 import { appendToPublisher, bootstrapSynthetic, initMirror, initPublisher, keygen, populateSynthetic, readVerified, startPeerServer, syncFromPeer } from "./peer.mjs";
 
 const [command, ...args] = process.argv.slice(2);
@@ -9,6 +11,12 @@ const usage = `用法：
   node pnb/node.mjs populate-demo 發布目錄 私鑰目錄
   node pnb/node.mjs mirror 鏡像目錄 已獨立取得的信任根 事件數 鏈頭
   node pnb/node.mjs append 發布目錄 actor 私鑰.pem 事件類型 payload.json
+  node pnb/node.mjs test-credit 發布目錄 發行者 私鑰.pem 收款者 金額
+  node pnb/node.mjs test-pay 發布目錄 付款者 私鑰.pem 收款者 金額 [合約檔]
+  node pnb/node.mjs test-lock 發布目錄 付款者 私鑰.pem 收款者 金額 合約檔 密語檔
+  node pnb/node.mjs test-claim 發布目錄 收款者 私鑰.pem 合約ID 密語檔
+  node pnb/node.mjs test-cancel-request 發布目錄 付款者 私鑰.pem 合約ID
+  node pnb/node.mjs test-cancel-accept 發布目錄 收款者 私鑰.pem 合約ID
   node pnb/node.mjs sync 鏡像目錄 http://節點:埠/
   node pnb/node.mjs follow 鏡像目錄 輪詢秒數 http://節點一/ [http://節點二/ ...]
   node pnb/node.mjs inspect 節點目錄
@@ -33,6 +41,43 @@ try {
   } else if (command === "append" && args.length === 5) {
     const summary = appendToPublisher(args[0], args[1], args[2], args[3], JSON.parse(readFileSync(args[4], "utf8")));
     console.log(JSON.stringify({ eventCount: summary.eventCount, head: summary.head, trustRoot: summary.trustRoot }));
+  } else if (command === "test-credit" && args.length === 5) {
+    const [dir, issuer, key, to, rawAmount] = args;
+    const issuance_id = `TEST-ISSUE-${randomUUID()}`;
+    const summary = appendToPublisher(dir, issuer, key, "test_credit_issued", {
+      issuance_id, to, amount: Number(rawAmount), authorization_sha256: sha256(`SYNTHETIC ISSUE ${issuance_id}`),
+    });
+    console.log(JSON.stringify({ issuance_id, balance: summary.testBalances[to], eventCount: summary.eventCount }));
+  } else if (command === "test-pay" && args.length >= 5 && args.length <= 6) {
+    const [dir, from, key, to, rawAmount, contractFile] = args;
+    const nonce = (readVerified(dir).summary.testNonces[from] ?? 0) + 1;
+    const transfer_id = `TEST-TRANSFER-${randomUUID()}`;
+    const contract_sha256 = sha256(contractFile ? readFileSync(contractFile) : "NO CONTRACT: TEST TRANSFER");
+    const summary = appendToPublisher(dir, from, key, "test_transfer", { transfer_id, to, amount: Number(rawAmount), contract_sha256, nonce });
+    console.log(JSON.stringify({ transfer_id, fromBalance: summary.testBalances[from], toBalance: summary.testBalances[to], eventCount: summary.eventCount }));
+  } else if (command === "test-lock" && args.length === 7) {
+    const [dir, from, key, to, rawAmount, contractFile, secretFile] = args;
+    const nonce = (readVerified(dir).summary.testNonces[from] ?? 0) + 1;
+    const escrow_id = `TEST-ESCROW-${randomUUID()}`;
+    const summary = appendToPublisher(dir, from, key, "test_escrow_opened", {
+      escrow_id, to, amount: Number(rawAmount), contract_sha256: sha256(readFileSync(contractFile)),
+      secret_sha256: sha256(readFileSync(secretFile, "utf8").trim()), nonce,
+    });
+    console.log(JSON.stringify({ escrow_id, payerBalance: summary.testBalances[from], eventCount: summary.eventCount }));
+  } else if (command === "test-claim" && args.length === 5) {
+    const [dir, payee, key, escrow_id, secretFile] = args;
+    const summary = appendToPublisher(dir, payee, key, "test_escrow_claimed", {
+      escrow_id, secret: readFileSync(secretFile, "utf8").trim(),
+    });
+    console.log(JSON.stringify({ escrow_id, payeeBalance: summary.testBalances[payee], eventCount: summary.eventCount }));
+  } else if (command === "test-cancel-request" && args.length === 4) {
+    const [dir, payer, key, escrow_id] = args;
+    const summary = appendToPublisher(dir, payer, key, "test_escrow_cancel_requested", { escrow_id });
+    console.log(JSON.stringify({ escrow_id, status: "awaiting payee consent", eventCount: summary.eventCount }));
+  } else if (command === "test-cancel-accept" && args.length === 4) {
+    const [dir, payee, key, escrow_id] = args;
+    const summary = appendToPublisher(dir, payee, key, "test_escrow_cancel_accepted", { escrow_id });
+    console.log(JSON.stringify({ escrow_id, status: "cancelled", eventCount: summary.eventCount }));
   } else if (command === "sync" && args.length === 2) {
     const summary = await syncFromPeer(args[0], args[1]);
     console.log(JSON.stringify({ eventCount: summary.eventCount, head: summary.head, trustRoot: summary.trustRoot }));
