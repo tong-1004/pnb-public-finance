@@ -76,6 +76,8 @@ node pnb/node.mjs test-pay pnb-workspace/publisher budget_office pnb-workspace/k
 
 `test-credit` 由預算角色發行，整條帳本累計上限 1,000,000 TEST。這是示範權限而非無主貨幣。`test-pay` 的合約檔只取 SHA-256 放進交易，不能證明雙方理解或履行文字；不提供合約檔時使用明確的「無合約」承諾。
 
+亦可執行 `node pnb/trade.mjs` 使用本機互動入口，或在 Windows 可攜版執行 `Start-TEST-Trade.cmd`。輸入 `credit` 發行合成額度後，再輸入 `pay` 轉帳；介面會顯示合約雜湊並要求 `YES` 確認。這只使用本機 TEST 私鑰，不會發送 Ethereum 交易。
+
 條件式鎖定需先在本機準備密語檔，付款者輸入合約檔與金額；收款者得知密語後以自己的私鑰領取。領取事件會公開密語，請**只用無價值的示範密語**。密語錯誤或未授權者無法領取；取消需付款者提出、收款者另行簽署同意。這是雜湊鎖定示範，不會判定真實工程或商品是否履約。
 
 ```powershell

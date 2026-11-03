@@ -35,8 +35,9 @@ Copy-Item -LiteralPath (Join-Path $nodeRoot 'LICENSE') -Destination (Join-Path $
 Copy-Item -LiteralPath (Join-Path $repo 'README.md') -Destination (Join-Path $stage 'README.md')
 Copy-Item -LiteralPath (Join-Path $repo 'PLAN.md') -Destination (Join-Path $stage 'PLAN.md')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Start-PNB.cmd') -Destination (Join-Path $stage 'Start-PNB.cmd')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Start-TEST-Trade.cmd') -Destination (Join-Path $stage 'Start-TEST-Trade.cmd')
 New-Item -ItemType Directory -Path (Join-Path $stage 'pnb') | Out-Null
-$files = @('app.mjs','cli.mjs','demo.mjs','evm.html','evm.mjs','evm-ui.mjs','index.html','ledger.mjs','node.mjs','peer.mjs','sample-ledger.json','server.mjs')
+$files = @('app.mjs','cli.mjs','demo.mjs','evm.html','evm.mjs','evm-ui.mjs','index.html','ledger.mjs','node.mjs','peer.mjs','sample-ledger.json','server.mjs','trade.mjs')
 foreach ($file in $files) {
   Copy-Item -LiteralPath (Join-Path (Join-Path $repo 'pnb') $file) -Destination (Join-Path (Join-Path $stage 'pnb') $file)
 }
